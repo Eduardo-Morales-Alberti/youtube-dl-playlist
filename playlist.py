@@ -64,7 +64,7 @@ def main():
         URL = 'https://www.youtube.com/watch?v=' + videoId
 
         # ℹ️ See help(yt_dlp.YoutubeDL) for a list of available options and public functions
-        with yt_dlp.YoutubeDL({'format':'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'}) as ydl:
+        with yt_dlp.YoutubeDL({'format':'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', 'outtmpl': 'downloads/%(title)s.%(ext)s'}) as ydl:
             ydl.download([URL])
 
   except HttpError as err:
