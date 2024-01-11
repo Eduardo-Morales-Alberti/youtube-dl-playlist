@@ -21,14 +21,19 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import yt_dlp
+import re
+import sys
 
-# If modifying these scopes, delete the file token.json.
-SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
+# python3 playlist.py  "PLqdswNfykL2yQMZ2U5bOmCl9bLNfvh6mK"
 
-def main():
+def main(playlistId):
   """Shows basic usage of the Sheets API.
   Prints values from a sample spreadsheet.
   """
+
+  # If modifying these scopes, delete the file token.json.
+  SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
+
   creds = None
   # The file token.json stores the user's access and refresh tokens, and is
   # created automatically when the authorization flow completes for the first
@@ -51,26 +56,59 @@ def main():
   try:
     service = build("youtube", "v3", credentials=creds)
 
+    # Get the youtube items.
     playlistItems = service.playlistItems()
     request = playlistItems.list(
         part="snippet",
         maxResults=25,
-        playlistId = "PLqdswNfykL2yQMZ2U5bOmCl9bLNfvh6mK"
+        playlistId = playlistId
     )
     response = request.execute()
+
+    # Create playlist directory.
+    path = 'downloads/' + playlistId
+    isExist = os.path.exists(path)
+    if not isExist:
+
+      # Create a new directory because it does not exist
+      os.makedirs(path)
+      print("The new directory " + path + " is created!")
+
+    # Get all files from youtube downloads dir.
+    files = {}
+    for f in os.listdir(path):
+      if os.path.isfile(path + '/' + f) & f.endswith('.mp4'):
+       match = re.search(r'\[([\w\-_]*)\]', f)
+       videoId = match.group(1)
+       files[videoId] = f
+
+    # Download the youtube video.
+    removeFiles = files
     for i in response["items"]:
         videoId = i["snippet"]["resourceId"]["videoId"]
+        if videoId in files:
+          print("Video alredy exists: " + videoId)
+          # Delete from the remove list if the video exists in the list.
+          del removeFiles[videoId]
+          continue
+
         print("Downloading " + videoId)
         URL = 'https://www.youtube.com/watch?v=' + videoId
 
-        # ℹ️ See help(yt_dlp.YoutubeDL) for a list of available options and public functions
-        with yt_dlp.YoutubeDL({'format':'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', 'outtmpl': 'downloads/%(title)s.%(ext)s'}) as ydl:
+        # Download the youtbe video.
+        with yt_dlp.YoutubeDL({'format':'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', 'outtmpl': path + '/' + '/[%(id)s] - %(title)s.%(ext)s'}) as ydl:
             ydl.download([URL])
+
+    # Delete videos that does not exists on the youtube playlist.
+    if len(removeFiles) > 0:
+      for f in removeFiles:
+        print("Removing deprecated video: " + removeFiles[f])
+        os.remove(path + '/' + removeFiles[f])
 
   except HttpError as err:
     print(err)
 
 
 if __name__ == "__main__":
-  main()
+  main(sys.argv[1])
 # [END sheets_quickstart]
